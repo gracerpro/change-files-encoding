@@ -27,9 +27,15 @@ class Win2Utf8Converter
     /** @var string */
     private $gitDiffExpression = 'HEAD~1 HEAD';
 
+    /** @var string[] */
+    private $excludeExtensions;
+
     public function __construct()
     {
         $this->sourceDir = __DIR__;
+        $this->excludeExtensions = [
+            'jpg', 'jpeg', 'gif', 'png', 'ico', 'cur', 'bmp',
+        ];
     }
 
     /**
@@ -63,15 +69,40 @@ class Win2Utf8Converter
         }
         $sourceDir = $this->getSourceDir();
         foreach ($files as $file) {
+            echo "iconv $file\n";
+            if ($this->isSkipFile($file)) {
+                echo "  skip\n";
+                continue;
+            }
             $sourceFilePath = $sourceDir . '/' . $file;
             $backupFilePath = $sourceFilePath . '.bak';
-            echo "iconv $file\n";
+            if (!is_file($sourceFilePath)) {
+                echo "  skip, file not found\n";
+                continue;
+            }
+
             if (!$this->convertFileEncoding($sourceFilePath, $backupFilePath)) {
                 throw new Win2Utf8ConverterException('Could not convert encoding of the file ' . $file);
             }
             copy($backupFilePath, $sourceFilePath);
             unlink($backupFilePath);
         }
+    }
+
+    /**
+     * @param string $fileName
+     * @return boolean
+     */
+    private function isSkipFile($fileName)
+    {
+        if (empty($fileName)) {
+            return true;
+        }
+        $ext = '';
+        if ($pos = strrpos($fileName, '.')) {
+            $ext = substr($fileName, $pos + 1);
+        }
+        return in_array($ext, $this->excludeExtensions);
     }
 
     /**
